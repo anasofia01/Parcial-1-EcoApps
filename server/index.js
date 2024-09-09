@@ -3,42 +3,18 @@ const cors = require('cors');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 
-const app = express(); // Creates HTTP server
-app.use(express.json()); // utility to process JSON in requests
-app.use(cors()); // utility to allow clients to make requests from other hosts or ips
+const app = express();
+app.use(express.json());
+app.use(cors());
 
-const httpServer = createServer(app); // Explicity creates an HTTP server from the Express app
-
+const httpServer = createServer(app);
 const io = new Server(httpServer, {
 	path: '/real-time',
 	cors: {
-		origin: '*', // Allow requests from any origin
+		origin: '*',
 	},
-}); // Creates a WebSocket server, using the same HTTP server as the Express app and listening on the /real-time path
+});
 
-const db = {
-	players: [],
-};
-
-/* io.on('connection', (socket) => {
-	// "joinGame" listerner
-	socket.on('joinGame', (user) => {
-		db.players.push(user);
-		console.log(user);
-		io.emit('userJoined', db); // Example: Broadcasts the message to all connected clients including the sender
-		// socket.broadcast.emit("userJoined", db); // Example: Broadcasts the message to all connected clients except the sender
-	});
-
-	// implement "startGame" listener
-
-	// implement "notifyMarco" listener
-
-	// implement "notifyPolo" listener
-
-	// implement "onSelectPolo" listener
-}); */
-
-let gameStarted = false;
 let players = [];
 let marco = null;
 let specialPolo = null;
@@ -46,77 +22,63 @@ let specialPolo = null;
 function assignRoles() {
 	marco = players[Math.floor(Math.random() * players.length)];
 	specialPolo = players[Math.floor(Math.random() * players.length)];
+
+	// Asegurarse de que el Marco y Polo especial no sean la misma persona
 	while (specialPolo.id === marco.id) {
 		specialPolo = players[Math.floor(Math.random() * players.length)];
 	}
-	io.emit('assignRoles', { marco, specialPolo });
+
+	// Enviar mensajes a los jugadores individualmente
+	players.forEach((player) => {
+		if (player.id === marco.id) {
+			// Solo el jugador "Marco" recibe este mensaje
+			io.to(player.id).emit('roleAssigned', { role: 'Marco' });
+		} else if (player.id === specialPolo.id) {
+			// Solo el jugador "PoloEspecial" recibe este mensaje
+			io.to(player.id).emit('roleAssigned', { role: 'PoloEspecial' });
+		} else {
+			// Todos los demás reciben "Polo"
+			io.to(player.id).emit('roleAssigned', { role: 'Polo' });
+		}
+	});
 }
 
 io.on('connection', (socket) => {
-	console.log('User connected', socket.id);
+	console.log('Jugador conectado:', socket.id);
 
-	socket.on('join-game', (player) => {
-		if (gameStarted) {
-			socket.emit('full', 'El juego ya está en progreso. Por favor espera.');
-		} else if (players.length < 3) {
-			players.push({ ...player, id: socket.id });
-			socket.emit('waiting', `Te has unido. Esperando a otros jugadores...`);
-			if (players.length === 3) {
-				gameStarted = true;
-				io.emit('start-game', '¡El juego comienza ahora!');
-			}
-		} else {
-			socket.emit('full', 'El juego ya está lleno.');
-		}
+	// Almacenar a los jugadores conectados
+	socket.on('Client:Login', ({ name }) => {
+		const newPlayer = { id: socket.id, name };
+		players.push(newPlayer);
+		io.emit('updatePlayers', players); // Actualiza la lista de jugadores conectados
 	});
 
+	socket.on('disconnect', () => {
+		players = players.filter((player) => player.id !== socket.id);
+		io.emit('updatePlayers', players); // Actualiza la lista cuando un jugador se desconecta
+		console.log('Jugador desconectado:', socket.id);
+	});
+
+	// Iniciar el juego
 	socket.on('startGame', () => {
 		if (players.length >= 3) {
-			assignRoles();
-			io.emit('gameStarted', 'El juego inicio');
+			assignRoles(); // Asigna roles al iniciar el juego
+			io.emit('gameStarted');
 		} else {
 			socket.emit('errorMessage', 'Se necesitan al menos 3 jugadores para iniciar el juego.');
 		}
 	});
 
 	socket.on('marcoYell', () => {
-		io.emit('marcoYelled', 'Alguien grito Marco');
+		io.emit('marcoYelled');
 	});
 
-	socket.on('poloYell', (playerId) => {
-		const poloPlayer = players.find((player) => player.id === playerId);
-		io.emit('poloYelled', 'Alguien grito Polo', poloPlayer);
-	});
-
-	socket.on('selectPolo', (poloId) => {
-		const selectedPolo = players.find((player) => player.id === poloId);
-		if (selectedPolo.id === specialPolo.id) {
-			io.emit('gameOver', 'Marco ha ganado seleccionando el Polo Especial.');
-		} else {
-			marco.role = 'Polo';
-			selectedPolo.role = 'Marco';
-			marco = selectedPolo;
-			io.emit('rolesUpdated', { marco, selectedPolo });
-		}
-	});
-
-	socket.on('disconnect', () => {
-		players = players.filter((player) => player.id !== socket.id);
-		console.log('Jugador desconectado:', socket.id);
-		if (players.length < 3 && gameStarted) {
-			io.emit('reset', 'Un jugador se ha desconectado. Reiniciando el juego.');
-			resetGame();
-		}
+	// Enviar una señal genérica cuando cualquier "Polo" grite
+	socket.on('poloYell', () => {
+		io.emit('poloYelled'); // Solo notifica que "Polo" ha gritado sin nombres
 	});
 });
 
-function resetGame() {
-	db.players = [];
-	gameStarted = false;
-	io.emit('reset', 'El juego ha sido reiniciado. Puedes jugar de nuevo.');
-}
-
 httpServer.listen(5050, () => {
-	// Starts the server on port 5050, same as before but now we are using the httpServer object
-	console.log(`Server is running on http://localhost:${5050}`);
+	console.log('Servidor escuchando en http://localhost:5050');
 });

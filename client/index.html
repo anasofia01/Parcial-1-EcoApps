@@ -10,20 +10,55 @@
 		/>
 		<title>PLAYERS</title>
 		<link rel="stylesheet" href="style.css" />
+
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				height: 100vh;
+				background-color: #f0f0f0;
+			}
+			.container {
+				text-align: center;
+				background: white;
+				padding: 20px;
+				border-radius: 10px;
+				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+			}
+			#start-button {
+				display: none; /* Se oculta hasta que haya suficientes jugadores */
+			}
+			.hidden {
+				display: none;
+			}
+		</style>
 	</head>
 	<body>
 		<div class="container" id="div-login">
-			<h1>Marco Polo Game</h1>
+			<h1>MARCO-POLO GAME</h1>
 			<form id="form-login">
 				<input type="text" id="name" name="name" placeholder="Enter your name" required />
-				<button type="submit">Join Game</button>
+				<button type="submit">Unirme</button>
 			</form>
 		</div>
 
-		<div class="container" id="div-initGame">
-			<h1>Marco Polo Game</h1>
-			<div class="container" id="players-nickname"></div>
-			<button type="submit">Iniciar juego</button>
+		<div class="container hidden" id="div-start">
+			<h1>Jugadores Conectados:</h1>
+			<div id="playerList"></div>
+			<button id="startGameBtn" onclick="iniciarJuego()">Iniciar juego</button>
+		</div>
+
+		<div class="container hidden" id="game-process">
+			<button id="marcoBtn" style="display: none">Gritar Marco</button>
+			<button id="poloBtn" style="display: none">Gritar Polo</button>
+		</div>
+
+		<div id="poloSelection">
+			<button onclick="selectPolo('polo1')">Seleccionar Polo 1</button>
+			<button onclick="selectPolo('polo2')">Seleccionar Polo 2</button>
+			<button onclick="selectPolo('polo3')">Seleccionar Polo 3</button>
 		</div>
 
 		<script
