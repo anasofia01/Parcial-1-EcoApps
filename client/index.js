@@ -8,6 +8,7 @@ const startGameBtn = document.getElementById('startGameBtn');
 const marcoBtn = document.getElementById('marcoBtn');
 const poloBtn = document.getElementById('poloBtn');
 const gameProcessDiv = document.getElementById('game-process');
+const poloSelectionDiv = document.getElementById('poloSelection');
 
 // Evento de login
 formLogin.addEventListener('submit', (event) => {
@@ -43,16 +44,21 @@ startGameBtn.addEventListener('click', () => {
 socket.on('roleAssigned', ({ role }) => {
 	divStart.classList.add('hidden');
 	gameProcessDiv.classList.remove('hidden'); // Mostrar la interfaz de juego
+	poloSelectionDiv.classList.remove('hidden'); // Mostrar selección de Polo
 
 	// Mostrar el botón correcto basado en el rol recibido
 	if (role === 'Marco') {
-		document.getElementById('marcoBtn').style.display = 'block';
+		marcoBtn.style.display = 'block';
+		poloBtn.style.display = 'none';
+		poloSelectionDiv.style.display = 'none'; // Ocultar selección de Polo para Marco
 		alert('Tú eres "MARCO"'); // Solo el Marco verá este mensaje
 	} else if (role === 'PoloEspecial') {
-		document.getElementById('poloBtn').style.display = 'block';
+		poloBtn.style.display = 'block';
+		marcoBtn.style.display = 'none';
 		alert('Tú eres el "POLO Especial"'); // Solo el Polo Especial verá este mensaje
 	} else {
-		document.getElementById('poloBtn').style.display = 'block';
+		marcoBtn.style.display = 'none';
+		poloBtn.style.display = 'block';
 		alert('Tú eres "POLO"'); // Los demás jugadores verán este mensaje
 	}
 });
@@ -66,12 +72,22 @@ poloBtn.addEventListener('click', () => {
 	socket.emit('poloYell');
 });
 
+// Eventos para seleccionar Polo
+function selectPolo(poloId) {
+	socket.emit('selectPolo', poloId);
+}
+
+document.querySelectorAll('#poloSelection button').forEach((button) => {
+	button.addEventListener('click', (event) => {
+		selectPolo(event.target.id);
+	});
+});
+
 // Notificaciones de gritos Marco o Polo
 socket.on('marcoYelled', () => {
 	alert('Marco ha gritado');
 });
 
-// Notificación genérica para los Polos
 socket.on('poloYelled', () => {
 	alert('¡Polo ha gritado!');
 });

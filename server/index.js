@@ -56,6 +56,10 @@ io.on('connection', (socket) => {
 	socket.on('disconnect', () => {
 		players = players.filter((player) => player.id !== socket.id);
 		io.emit('updatePlayers', players); // Actualiza la lista cuando un jugador se desconecta
+		if (players.length < 3) {
+			io.emit('reset', 'Un jugador se ha desconectado. Reiniciando el juego.');
+			resetGame();
+		}
 		console.log('Jugador desconectado:', socket.id);
 	});
 
@@ -73,11 +77,34 @@ io.on('connection', (socket) => {
 		io.emit('marcoYelled');
 	});
 
-	// Enviar una señal genérica cuando cualquier "Polo" grite
+	// Manejar el grito de Polo
 	socket.on('poloYell', () => {
 		io.emit('poloYelled'); // Solo notifica que "Polo" ha gritado sin nombres
 	});
+
+	// Manejar la selección de Polo
+	socket.on('selectPolo', (poloId) => {
+		const selectedPolo = players.find((player) => player.id === poloId);
+		if (selectedPolo && selectedPolo.id === specialPolo.id) {
+			io.emit('gameOver', '¡Marco ha ganado seleccionando el Polo Especial!');
+			resetGame();
+		} else {
+			if (marco) {
+				marco.role = 'Polo';
+				selectedPolo.role = 'Marco';
+				marco = selectedPolo;
+				io.emit('rolesUpdated', { marco, selectedPolo });
+			}
+		}
+	});
 });
+
+function resetGame() {
+	players = [];
+	marco = null;
+	specialPolo = null;
+	io.emit('reset', 'El juego ha sido reiniciado. Puedes jugar de nuevo.');
+}
 
 httpServer.listen(5050, () => {
 	console.log('Servidor escuchando en http://localhost:5050');
